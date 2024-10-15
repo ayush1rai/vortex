@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/users.models.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
+import { uploadOnCloudinary } from "../utils/cloudinary.js"
 const generateRefreshAndAccessTokens = async (userId) =>{
     try{
         const userById = await User.findById(userId)
@@ -35,6 +36,13 @@ const registerUser = asyncHandler(async(req, res) =>{
         $or: [{ email }]
     })
 
+    let profileImageLocalPath;
+    if (req.files && Array.isArray(req.files.profileImage) && req.files.profileImage.length > 0) {
+        profileImageLocalPath = req.files.profileImage[0].path
+    }
+    const profileImage = await uploadOnCloudinary(profileImageLocalPath)
+    if(!profileImage) console.log("profile image has not been uploaded")
+
     if(existedUserWithUserName) throw new ApiError(409, "Username already taken")
 
     if(existedUserWithEmail) throw new ApiError(409, "Email already registered")
@@ -44,7 +52,8 @@ const registerUser = asyncHandler(async(req, res) =>{
         email,
         password,
         bio,
-        userName: userName.toLowerCase()
+        userName: userName.toLowerCase(),
+        profileImage: profileImage?.url || ""
     })
     const createdUser = await User.findById(user._id).select("-password -refreshToken")
 
@@ -207,7 +216,7 @@ const updateAccountDetails = asyncHandler(async(req, res) => {
     .json(new ApiResponse(200, user, "Account details updated successfully"))
 })
 
-//have to add image adding and updation feature
+//have to add image adding, deletion of old image and updation feature
 //updation requires another feature rather than the upper one
 //have to add subscription feature
 //have to update status codes of all the responses
